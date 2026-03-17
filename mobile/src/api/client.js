@@ -1,9 +1,9 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
 
-const APP_CONFIG = Constants.expoConfig?.extra ?? Constants.manifest2?.extra ?? {};
+const APP_CONFIG = Constants.expoConfig?.extra ?? Constants.manifest2?.extra ?? Constants.manifest?.extra ?? {};
 const DEFAULT_BASE_URL = 'http://10.0.2.2:5000/api';
-const BASE_URL = String(APP_CONFIG.apiBaseUrl || DEFAULT_BASE_URL).replace(/\/+$/, '');
+const BASE_URL = String(process.env.EXPO_PUBLIC_API_BASE_URL || APP_CONFIG.apiBaseUrl || DEFAULT_BASE_URL).replace(/\/+$/, '');
 
 
 const api = axios.create({
