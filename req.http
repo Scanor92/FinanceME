@@ -1,0 +1,188 @@
+@baseUrl = http://localhost:5000/api
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWFjMmU2ZGQ3NGVjNTI0Nzc1MWJlMzMiLCJpYXQiOjE3NzI4OTE3NzgsImV4cCI6MTc3NTQ4Mzc3OH0.7PDIIkWRcNTWcbNo2P1fGV5Klbf1ZPwsqOialloXvng
+@budgetId = 69ac2edad74ec5247751be36
+@transactionId = 69ac2fbed74ec5247751be3e
+@investmentId = 69ac302fd74ec5247751be47
+@savingsId = 69ac312fd74ec5247751be4e
+
+### Health
+GET {{baseUrl}}/health
+
+### Register
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Test User",
+  "email": "test.user@example.com",
+  "password": "secret123"
+}
+
+### Login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "test.user@example.com",
+  "password": "secret123"
+}
+
+### Me
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{token}}
+
+### Create Budget
+POST {{baseUrl}}/budgets
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Food Budget",
+  "amount": 300,
+  "spent": 20,
+  "category": "Food",
+  "period": "monthly"
+}
+
+### Get Budgets
+GET {{baseUrl}}/budgets
+Authorization: Bearer {{token}}
+
+### Get Budget By Id
+GET {{baseUrl}}/budgets/{{budgetId}}
+Authorization: Bearer {{token}}
+
+### Update Budget
+PUT {{baseUrl}}/budgets/{{budgetId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Food Budget Updated",
+  "amount": 350,
+  "spent": 50,
+  "category": "Food",
+  "period": "monthly"
+}
+
+### Delete Budget
+DELETE {{baseUrl}}/budgets/{{budgetId}}
+Authorization: Bearer {{token}}
+
+### Create Transaction
+POST {{baseUrl}}/transactions
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Salary March",
+  "amount": 1500,
+  "type": "income",
+  "category": "Salary",
+  "date": "2026-03-07T12:00:00.000Z",
+  "note": "Monthly salary"
+}
+
+### Get Transactions
+GET {{baseUrl}}/transactions
+Authorization: Bearer {{token}}
+
+### Get Transactions (paginated + filtered)
+GET {{baseUrl}}/transactions?page=1&limit=5&type=income&category=Salary&startDate=2026-01-01&endDate=2026-12-31
+Authorization: Bearer {{token}}
+
+### Get Transaction By Id
+GET {{baseUrl}}/transactions/{{transactionId}}
+Authorization: Bearer {{token}}
+
+### Update Transaction
+PUT {{baseUrl}}/transactions/{{transactionId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Salary March Updated",
+  "amount": 1600,
+  "type": "income",
+  "category": "Salary",
+  "date": "2026-03-07T12:00:00.000Z",
+  "note": "Updated note"
+}
+
+### Delete Transaction
+DELETE {{baseUrl}}/transactions/{{transactionId}}
+Authorization: Bearer {{token}}
+
+### Create Investment
+POST {{baseUrl}}/investments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "assetName": "Bitcoin",
+  "symbol": "BTC",
+  "quantity": 0.25,
+  "averageBuyPrice": 45000,
+  "assetType": "crypto"
+}
+
+### Get Investments
+GET {{baseUrl}}/investments
+Authorization: Bearer {{token}}
+
+### Get Investment By Id
+GET {{baseUrl}}/investments/{{investmentId}}
+Authorization: Bearer {{token}}
+
+### Update Investment
+PUT {{baseUrl}}/investments/{{investmentId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "assetName": "Bitcoin",
+  "symbol": "BTC",
+  "quantity": 0.35,
+  "averageBuyPrice": 46000,
+  "assetType": "crypto"
+}
+
+### Delete Investment
+DELETE {{baseUrl}}/investments/{{investmentId}}
+Authorization: Bearer {{token}}
+
+### Create Savings Goal
+POST {{baseUrl}}/savings
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Emergency Fund",
+  "targetAmount": 5000,
+  "currentAmount": 800,
+  "targetDate": "2026-12-31T00:00:00.000Z"
+}
+
+### Get Savings Goals
+GET {{baseUrl}}/savings
+Authorization: Bearer {{token}}
+
+### Get Savings Goal By Id
+GET {{baseUrl}}/savings/{{savingsId}}
+Authorization: Bearer {{token}}
+
+### Update Savings Goal
+PUT {{baseUrl}}/savings/{{savingsId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Emergency Fund Updated",
+  "targetAmount": 6000,
+  "currentAmount": 1200,
+  "targetDate": "2026-12-31T00:00:00.000Z"
+}
+
+### Delete Savings Goal
+DELETE {{baseUrl}}/savings/{{savingsId}}
+Authorization: Bearer {{token}}

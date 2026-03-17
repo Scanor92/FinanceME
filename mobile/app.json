@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "FinaceME Mobile",
+    "slug": "finaceme-mobile",
+    "version": "1.0.0",
+    "scheme": "finaceme",
+    "extra": {
+      "apiBaseUrl": "http://192.168.1.87:5000/api",
+      "eas": {
+        "projectId": "661cbe61-ade3-4ed9-9a4f-8995b05e84b0"
+      }
+    },
+    "orientation": "portrait",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0C1120"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.finaceme.mobile",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#0C1120"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-font"
+    ],
+    "owner": "chibou"
+  }
+}
