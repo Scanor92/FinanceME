@@ -4,7 +4,7 @@
     "slug": "finaceme-mobile",
     "version": "1.0.0",
     "scheme": "finaceme",
-    "icon": "./public/logo.png",
+    "icon": "./assets/images/logo.png",
     "extra": {
       "apiBaseUrl": "https://financeme-9h46.onrender.com/api",
       "eas": {
@@ -13,7 +13,7 @@
     },
     "orientation": "portrait",
     "splash": {
-      "image": "./public/logo.png",
+      "image": "./assets/images/logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#0C1120"
     },
@@ -25,9 +25,9 @@
     },
     "android": {
       "package": "com.finaceme.mobile",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
-        "foregroundImage": "./public/logo.png",
+        "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#FFFFFF"
       }
     },

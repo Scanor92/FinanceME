@@ -15,36 +15,25 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { investmentApi } from '../api/client';
+import InvestmentCard from '../components/investments/InvestmentCard';
+import InvestmentFormModal from '../components/investments/InvestmentFormModal';
+import InvestmentsHero from '../components/investments/InvestmentsHero';
 import {
   investmentStatusOptions,
   investmentTypeOptions,
   getInvestmentStatusLabel,
-  getInvestmentTypeIcon,
   getInvestmentTypeLabel,
 } from '../constants/investmentMeta';
 import { useAppTheme } from '../context/ThemeContext';
 import { getSemanticColors } from '../theme/semanticColors';
 import { formatDate, formatPercent, getDaysRemaining } from '../utils/format';
-
-// Multi-currency formatter kept local (XOF / USD / EUR)
-const formatMoney = (value, currencyCode = 'XOF') =>
-  new Intl.NumberFormat('fr-NE', {
-    style: 'currency',
-    currency: ['XOF', 'USD', 'EUR'].includes(currencyCode) ? currencyCode : 'XOF',
-    maximumFractionDigits: 2,
-  }).format(Number(value || 0));
-
-const numberFormatter = new Intl.NumberFormat('fr-NE', {
-  maximumFractionDigits: 2,
-});
-
-const maturityAssetTypes = ['fixed_deposit'];
-const yieldAssetTypes = ['fixed_deposit', 'cooperative'];
-const propertyAssetTypes = ['land', 'real_estate', 'agriculture'];
-
-const isMaturityAsset = (assetType) => maturityAssetTypes.includes(assetType);
-const isYieldAsset = (assetType) => yieldAssetTypes.includes(assetType);
-const isPropertyAsset = (assetType) => propertyAssetTypes.includes(assetType);
+import {
+  formatInvestmentMoney,
+  investmentNumberFormatter,
+  isMaturityAsset,
+  isPropertyAsset,
+  isYieldAsset,
+} from '../utils/investments';
 
 const InvestmentsScreen = () => {
   const { palette, isLight } = useAppTheme();
@@ -533,6 +522,46 @@ const InvestmentsScreen = () => {
     );
   }
 
+  const formValues = {
+    assetName,
+    symbol,
+    quantity,
+    averageBuyPrice,
+    assetType,
+    status,
+    currency,
+    location,
+    area,
+    purchaseDate,
+    estimatedCurrentValue,
+    expectedAnnualReturnRate,
+    maturityDate,
+    exitDate,
+    exitValue,
+    institution,
+    notes,
+  };
+
+  const formSetters = {
+    setAssetName,
+    setSymbol,
+    setQuantity,
+    setAverageBuyPrice,
+    setAssetType,
+    setStatus,
+    setCurrency,
+    setLocation,
+    setArea,
+    setPurchaseDate,
+    setEstimatedCurrentValue,
+    setExpectedAnnualReturnRate,
+    setMaturityDate,
+    setExitDate,
+    setExitValue,
+    setInstitution,
+    setNotes,
+  };
+
   return (
     <>
       <FlatList
@@ -543,192 +572,23 @@ const InvestmentsScreen = () => {
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={ui.primary} />}
         ListHeaderComponent={
           <>
-            <View style={[styles.hero, { borderColor: ui.border, backgroundColor: ui.panel }]}>
-              <View style={[styles.heroGlow, styles.heroGlowLeft, { backgroundColor: ui.heroGlowA }]} />
-              <View style={[styles.heroGlow, styles.heroGlowRight, { backgroundColor: ui.heroGlowB }]} />
-
-              <View style={[styles.heroRibbon, { backgroundColor: ui.heroRibbon }]}>
-                <Text style={[styles.heroRibbonText, { color: ui.heroRibbonText }]}>INVESTIR AU NIGER</Text>
-              </View>
-
-              <Text style={[styles.title, { color: ui.text }]}>Des actifs concrets, bien suivis</Text>
-              <Text style={[styles.subtitle, { color: ui.textSecondary }]}>
-                Terrain, elevage, commerce, cooperative: suis ce que tu construis vraiment.
-              </Text>
-
-              <View style={styles.kpiRow}>
-                <View style={[styles.kpiCard, styles.kpiCardWide, { borderColor: ui.softBorder, backgroundColor: ui.softBg }]}>
-                  <Text style={[styles.kpiLabel, { color: ui.textSecondary }]}>Capital engage</Text>
-                  <Text style={[styles.kpiValue, { color: ui.text }]}>{formatMoney(totals.invested, 'XOF')}</Text>
-                  <Text style={[styles.kpiHint, { color: ui.textSecondary }]}>Valeur cumulee de tes positions en portefeuille</Text>
-                </View>
-                <View style={[styles.kpiCard, { borderColor: ui.softBorder, backgroundColor: ui.softBg }]}>
-                  <Text style={[styles.kpiLabel, { color: ui.textSecondary }]}>Positions</Text>
-                  <Text style={[styles.kpiValue, { color: ui.text }]}>{totals.positions}</Text>
-                  <Text style={[styles.kpiHint, { color: ui.textSecondary }]}>Actifs suivis</Text>
-                </View>
-              </View>
-
-              <View style={styles.kpiRow}>
-                <View style={[styles.kpiCard, { borderColor: ui.softBorder, backgroundColor: ui.softBg }]}>
-                  <Text style={[styles.kpiLabel, { color: ui.textSecondary }]}>A echeance</Text>
-                  <Text style={[styles.kpiValue, { color: ui.text }]}>{maturitySummary.maturityCount}</Text>
-                  <Text style={[styles.kpiHint, { color: ui.textSecondary }]}>Depots et placements a terme</Text>
-                </View>
-                <View style={[styles.kpiCard, { borderColor: ui.softBorder, backgroundColor: ui.softBg }]}>
-                  <Text style={[styles.kpiLabel, { color: ui.textSecondary }]}>Actifs ouverts</Text>
-                  <Text style={[styles.kpiValue, { color: ui.text }]}>{maturitySummary.openCount}</Text>
-                  <Text style={[styles.kpiHint, { color: ui.textSecondary }]}>Terrain, elevage, commerce, or</Text>
-                </View>
-              </View>
-
-              <View style={styles.kpiRow}>
-                <View style={[styles.kpiCard, { borderColor: ui.softBorder, backgroundColor: ui.softBg }]}>
-                  <Text style={[styles.kpiLabel, { color: ui.textSecondary }]}>Actifs</Text>
-                  <Text style={[styles.kpiValue, { color: ui.text }]}>{totals.active}</Text>
-                  <Text style={[styles.kpiHint, { color: ui.textSecondary }]}>Toujours detenus</Text>
-                </View>
-                <View style={[styles.kpiCard, { borderColor: ui.softBorder, backgroundColor: ui.softBg }]}>
-                  <Text style={[styles.kpiLabel, { color: ui.textSecondary }]}>En attente</Text>
-                  <Text style={[styles.kpiValue, { color: ui.text }]}>{totals.pending}</Text>
-                  <Text style={[styles.kpiHint, { color: ui.textSecondary }]}>Mise en place ou validation</Text>
-                </View>
-              </View>
-
-              {performance.hasEstimate ? (
-                <View
-                  style={[
-                    styles.performanceHero,
-                    {
-                      borderColor: ui.softBorder,
-                      backgroundColor: performance.gain >= 0 ? `${sem.success}14` : `${sem.danger}14`,
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name={performance.gain >= 0 ? 'trending-up-outline' : 'trending-down-outline'}
-                    size={18}
-                    color={performance.gain >= 0 ? sem.success : sem.danger}
-                  />
-                  <View style={styles.performanceHeroBody}>
-                    <Text style={[styles.performanceHeroLabel, { color: ui.textSecondary }]}>Performance estimee</Text>
-                    <Text style={[styles.performanceHeroValue, { color: performance.gain >= 0 ? sem.success : sem.danger }]}>
-                      {performance.gain >= 0 ? '+' : '-'} {formatMoney(Math.abs(performance.gain), 'XOF')}
-                    </Text>
-                  </View>
-                  <Text style={[styles.performanceHeroRate, { color: ui.text }]}>
-                    {performance.gain >= 0 ? '+' : ''}
-                    {performance.rate.toFixed(1)}%
-                  </Text>
-                </View>
-              ) : null}
-
-              <View style={styles.featuredRow}>
-                {featuredTypes.map((item) => (
-                  <View key={item.value} style={[styles.featureChip, { borderColor: ui.softBorder, backgroundColor: ui.panelAlt }]}>
-                    <Ionicons name={item.icon} size={14} color={sem.investment} />
-                    <Text style={[styles.featureChipText, { color: ui.text }]}>{item.label}</Text>
-                  </View>
-                ))}
-              </View>
-
-              <View style={styles.filterBlock}>
-                <Text style={[styles.filterTitle, { color: ui.textSecondary }]}>Filtrer le portefeuille</Text>
-                <View style={styles.filterRow}>
-                  <Pressable
-                    style={[
-                      styles.filterChip,
-                      { borderColor: ui.inputBorder, backgroundColor: ui.segmentBg },
-                      statusFilter === 'all' && { borderColor: ui.primary, backgroundColor: ui.segmentActiveBg },
-                    ]}
-                    onPress={() => setStatusFilter('all')}
-                  >
-                    <Text style={[styles.filterChipText, { color: statusFilter === 'all' ? ui.text : ui.textSecondary }]}>Tous statuts</Text>
-                  </Pressable>
-                  {investmentStatusOptions.map((option) => (
-                    <Pressable
-                      key={option.value}
-                      style={[
-                        styles.filterChip,
-                        { borderColor: ui.inputBorder, backgroundColor: ui.segmentBg },
-                        statusFilter === option.value && { borderColor: ui.primary, backgroundColor: ui.segmentActiveBg },
-                      ]}
-                      onPress={() => setStatusFilter(option.value)}
-                    >
-                      <Text style={[styles.filterChipText, { color: statusFilter === option.value ? ui.text : ui.textSecondary }]}>
-                        {option.label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-                <View style={styles.filterRow}>
-                  <Pressable
-                    style={[
-                      styles.filterChip,
-                      { borderColor: ui.inputBorder, backgroundColor: ui.segmentBg },
-                      typeFilter === 'all' && { borderColor: ui.primary, backgroundColor: ui.segmentActiveBg },
-                    ]}
-                    onPress={() => setTypeFilter('all')}
-                  >
-                    <Text style={[styles.filterChipText, { color: typeFilter === 'all' ? ui.text : ui.textSecondary }]}>Tous types</Text>
-                  </Pressable>
-                  {featuredTypes.map((option) => (
-                    <Pressable
-                      key={`filter-${option.value}`}
-                      style={[
-                        styles.filterChip,
-                        { borderColor: ui.inputBorder, backgroundColor: ui.segmentBg },
-                        typeFilter === option.value && { borderColor: ui.primary, backgroundColor: ui.segmentActiveBg },
-                      ]}
-                      onPress={() => setTypeFilter(option.value)}
-                    >
-                      <Text style={[styles.filterChipText, { color: typeFilter === option.value ? ui.text : ui.textSecondary }]}>
-                        {option.label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-                <View style={styles.filterRow}>
-                  {[
-                    { value: 'recent', label: 'Plus recents' },
-                    { value: 'amount_desc', label: 'Plus gros montants' },
-                    { value: 'performance_desc', label: 'Plus rentables' },
-                  ].map((option) => (
-                    <Pressable
-                      key={option.value}
-                      style={[
-                        styles.filterChip,
-                        { borderColor: ui.inputBorder, backgroundColor: ui.segmentBg },
-                        sortMode === option.value && { borderColor: ui.primary, backgroundColor: ui.segmentActiveBg },
-                      ]}
-                      onPress={() => setSortMode(option.value)}
-                    >
-                      <Text style={[styles.filterChipText, { color: sortMode === option.value ? ui.text : ui.textSecondary }]}>
-                        {option.label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-                {(statusFilter !== 'all' || typeFilter !== 'all') ? (
-                  <View style={[styles.filteredSummary, { borderColor: ui.softBorder, backgroundColor: ui.softBg }]}>
-                    <Text style={[styles.filteredSummaryText, { color: ui.text }]}>
-                      {filteredTotals.positions} position(s) • {formatMoney(filteredTotals.invested, 'XOF')}
-                    </Text>
-                    <Pressable onPress={() => {
-                      setStatusFilter('all');
-                      setTypeFilter('all');
-                    }}>
-                      <Text style={[styles.filteredResetText, { color: ui.primary }]}>Reinitialiser</Text>
-                    </Pressable>
-                  </View>
-                ) : null}
-              </View>
-
-              <Pressable style={[styles.addBtn, { backgroundColor: ui.primary }]} onPress={() => setIsCreateOpen(true)}>
-                <Ionicons name="add" size={16} color={ui.onPrimary} />
-                <Text style={[styles.addBtnText, { color: ui.onPrimary }]}>Nouvelle position</Text>
-              </Pressable>
-            </View>
+            <InvestmentsHero
+              ui={ui}
+              sem={sem}
+              totals={totals}
+              maturitySummary={maturitySummary}
+              performance={performance}
+              featuredTypes={featuredTypes}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              typeFilter={typeFilter}
+              setTypeFilter={setTypeFilter}
+              sortMode={sortMode}
+              setSortMode={setSortMode}
+              filteredTotals={filteredTotals}
+              setIsCreateOpen={setIsCreateOpen}
+              formatMoney={formatInvestmentMoney}
+            />
 
             <View style={styles.analyticsRow}>
               <View style={[styles.analyticsCard, { borderColor: ui.softBorder, backgroundColor: ui.panelAlt }]}>
@@ -746,7 +606,7 @@ const InvestmentsScreen = () => {
                   {portfolioInsights.topType ? getInvestmentTypeLabel(portfolioInsights.topType[0]) : '-'}
                 </Text>
                 <Text style={[styles.analyticsHint, { color: ui.textSecondary }]}>
-                  {portfolioInsights.topType ? formatMoney(portfolioInsights.topType[1], 'XOF') : 'Aucune donnee'}
+                  {portfolioInsights.topType ? formatInvestmentMoney(portfolioInsights.topType[1], 'XOF') : 'Aucune donnee'}
                 </Text>
               </View>
             </View>
@@ -754,7 +614,7 @@ const InvestmentsScreen = () => {
             <View style={[styles.analyticsWideCard, { borderColor: ui.softBorder, backgroundColor: ui.softBg }]}>
               <Text style={[styles.analyticsLabel, { color: ui.textSecondary }]}>Capital deja sorti</Text>
               <Text style={[styles.analyticsWideValue, { color: ui.text }]}>
-                {formatMoney(filteredTotals.realized, 'XOF')}
+                {formatInvestmentMoney(filteredTotals.realized, 'XOF')}
               </Text>
               <Text style={[styles.analyticsHint, { color: ui.textSecondary }]}>
                 {filteredTotals.invested > 0
@@ -777,556 +637,50 @@ const InvestmentsScreen = () => {
           </Text>
         }
         renderItem={({ item }) => (
-          <View style={[styles.card, { borderColor: ui.border, backgroundColor: ui.panelAlt }]}>
-            <View style={styles.cardHeader}>
-              <View style={styles.identity}>
-                <View style={[styles.iconWrap, { borderColor: ui.softBorder, backgroundColor: ui.softBg }]}>
-                  <Ionicons name={getInvestmentTypeIcon(item.assetType)} size={16} color={sem.investment} />
-                </View>
-                <View style={styles.body}>
-                  <Text style={[styles.cardTitle, { color: ui.text }]}>{item.assetName}</Text>
-                  <Text style={[styles.cardMeta, { color: ui.textSecondary }]}>
-                    {getInvestmentTypeLabel(item.assetType)}{item.symbol ? ` - ${item.symbol}` : ''}
-                  </Text>
-                </View>
-              </View>
-              {item.symbol ? (
-                <View style={[styles.symbolBadge, { borderColor: ui.softBorder, backgroundColor: ui.softBg }]}>
-                  <Text style={[styles.symbolBadgeText, { color: sem.investment }]}>{item.symbol}</Text>
-                </View>
-              ) : null}
-            </View>
-
-            <View style={styles.metricRow}>
-              <Text style={[styles.metricLabel, { color: ui.textSecondary }]}>Statut</Text>
-              <Text
-                style={[
-                  styles.statusBadge,
-                  {
-                    color:
-                      item.status === 'sold'
-                        ? sem.danger
-                        : item.status === 'completed'
-                          ? sem.success
-                          : item.status === 'pending'
-                            ? sem.warning || ui.text
-                            : ui.text,
-                    borderColor:
-                      item.status === 'sold'
-                        ? ui.deleteBorder
-                        : item.status === 'completed'
-                          ? ui.softBorder
-                          : ui.inputBorder,
-                    backgroundColor:
-                      item.status === 'sold'
-                        ? ui.deleteBg
-                        : item.status === 'completed'
-                          ? `${sem.success}14`
-                          : item.status === 'pending'
-                            ? `${ui.primary}14`
-                            : ui.softBg,
-                  },
-                ]}
-              >
-                {getInvestmentStatusLabel(item.status)}
-              </Text>
-            </View>
-
-            <View style={styles.metricGrid}>
-              <View style={[styles.metricTile, { borderColor: ui.statTileBorder, backgroundColor: ui.statTileBg }]}>
-                <Text style={[styles.metricLabel, { color: ui.textSecondary }]}>Quantite</Text>
-                <Text style={[styles.metricValue, { color: ui.text }]}>{numberFormatter.format(Number(item.quantity || 0))}</Text>
-              </View>
-              <View style={[styles.metricTile, { borderColor: ui.statTileBorder, backgroundColor: ui.statTileBg }]}>
-                <Text style={[styles.metricLabel, { color: ui.textSecondary }]}>Prix moyen</Text>
-                <Text style={[styles.metricValue, { color: ui.text }]}>{formatMoney(Number(item.averageBuyPrice || 0), item.currency)}</Text>
-              </View>
-              <View style={[styles.metricTile, styles.metricTileWide, { borderColor: ui.statTileBorder, backgroundColor: ui.statTileBg }]}>
-                <Text style={[styles.metricLabel, { color: ui.textSecondary }]}>Total engage</Text>
-                <Text style={[styles.metricStrong, { color: sem.investment }]}>{formatMoney(Number(item.totalInvested || 0), item.currency)}</Text>
-              </View>
-            </View>
-            {item.estimatedCurrentValue !== null && item.estimatedCurrentValue !== undefined ? (
-              <View
-                style={[
-                  styles.estimateBanner,
-                  {
-                    borderColor: ui.softBorder,
-                    backgroundColor:
-                      Number(item.estimatedCurrentValue || 0) >= Number(item.totalInvested || 0) ? `${sem.success}18` : `${sem.danger}18`,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name={Number(item.estimatedCurrentValue || 0) >= Number(item.totalInvested || 0) ? 'trending-up-outline' : 'trending-down-outline'}
-                  size={14}
-                  color={Number(item.estimatedCurrentValue || 0) >= Number(item.totalInvested || 0) ? sem.success : sem.danger}
-                />
-                <Text style={[styles.estimateText, { color: ui.text }]}>
-                  Valeur estimee: {formatMoney(Number(item.estimatedCurrentValue || 0), item.currency)}
-                </Text>
-                <Text
-                  style={[
-                    styles.estimateDelta,
-                    {
-                      color:
-                        Number(item.estimatedCurrentValue || 0) >= Number(item.totalInvested || 0)
-                          ? sem.success
-                          : sem.danger,
-                    },
-                  ]}
-                >
-                  {Number(item.estimatedCurrentValue || 0) - Number(item.totalInvested || 0) >= 0 ? '+' : '-'}{' '}
-                  {formatMoney(Math.abs(Number(item.estimatedCurrentValue || 0) - Number(item.totalInvested || 0)), item.currency)}
-                </Text>
-              </View>
-            ) : null}
-            {item.location ? (
-              <View style={styles.metricRow}>
-                <Text style={[styles.metricLabel, { color: ui.textSecondary }]}>Localisation</Text>
-                <Text style={[styles.metricValue, { color: ui.text }]}>{item.location}</Text>
-              </View>
-            ) : null}
-            {item.area !== null && item.area !== undefined ? (
-              <View style={styles.metricRow}>
-                <Text style={[styles.metricLabel, { color: ui.textSecondary }]}>Superficie</Text>
-                <Text style={[styles.metricValue, { color: ui.text }]}>{numberFormatter.format(Number(item.area || 0))} m2</Text>
-              </View>
-            ) : null}
-            <View style={styles.metricRow}>
-              <Text style={[styles.metricLabel, { color: ui.textSecondary }]}>Mode de suivi</Text>
-              <Text style={[styles.metricValue, { color: ui.text }]}>
-                {isMaturityAsset(item.assetType) ? 'Placement a echeance' : 'Actif ouvert'}
-              </Text>
-            </View>
-            {item.purchaseDate ? (
-              <View style={styles.metricRow}>
-                <Text style={[styles.metricLabel, { color: ui.textSecondary }]}>Date d'achat</Text>
-                <Text style={[styles.metricValue, { color: ui.text }]}>{formatDate(item.purchaseDate)}</Text>
-              </View>
-            ) : null}
-            {item.expectedAnnualReturnRate !== null && item.expectedAnnualReturnRate !== undefined ? (
-              <View style={styles.metricRow}>
-                <Text style={[styles.metricLabel, { color: ui.textSecondary }]}>Rendement attendu</Text>
-                <Text style={[styles.metricValue, { color: sem.success }]}>{formatPercent(item.expectedAnnualReturnRate)}</Text>
-              </View>
-            ) : null}
-            {item.maturityDate ? (
-              <View style={styles.metricRow}>
-                <Text style={[styles.metricLabel, { color: ui.textSecondary }]}>Echeance</Text>
-                <Text style={[styles.metricValue, { color: ui.text }]}>
-                  {formatDate(item.maturityDate)}
-                  {item.daysRemaining !== null ? ` (${item.daysRemaining >= 0 ? `${item.daysRemaining} j restants` : 'depassee'})` : ''}
-                </Text>
-              </View>
-            ) : null}
-            {item.projectedValue !== null ? (
-              <View style={styles.metricRow}>
-                <Text style={[styles.metricLabel, { color: ui.textSecondary }]}>Valeur projetee</Text>
-                <Text style={[styles.metricValue, { color: sem.investment }]}>
-                  {formatMoney(item.projectedValue, item.currency)}
-                </Text>
-              </View>
-            ) : null}
-            {item.exitDate ? (
-              <View style={styles.metricRow}>
-                <Text style={[styles.metricLabel, { color: ui.textSecondary }]}>Date de sortie</Text>
-                <Text style={[styles.metricValue, { color: ui.text }]}>{formatDate(item.exitDate)}</Text>
-              </View>
-            ) : null}
-            {item.realizedValue !== null ? (
-              <View style={styles.metricRow}>
-                <Text style={[styles.metricLabel, { color: ui.textSecondary }]}>Valeur de sortie</Text>
-                <Text style={[styles.metricValue, { color: ui.text }]}>{formatMoney(item.realizedValue, item.currency)}</Text>
-              </View>
-            ) : null}
-            {item.realizedGain !== null ? (
-              <View style={styles.metricRow}>
-                <Text style={[styles.metricLabel, { color: ui.textSecondary }]}>Resultat reel</Text>
-                <Text style={[styles.metricValue, { color: item.realizedGain >= 0 ? sem.success : sem.danger }]}>
-                  {item.realizedGain >= 0 ? '+' : '-'} {formatMoney(Math.abs(item.realizedGain), item.currency)}
-                </Text>
-              </View>
-            ) : null}
-            {item.institution ? (
-              <View style={styles.metricRow}>
-                <Text style={[styles.metricLabel, { color: ui.textSecondary }]}>Structure</Text>
-                <Text style={[styles.metricValue, { color: ui.text }]}>{item.institution}</Text>
-              </View>
-            ) : null}
-            {item.notes ? <Text style={[styles.noteText, { color: ui.textSecondary }]}>{item.notes}</Text> : null}
-
-            <View style={styles.actionRow}>
-              <Pressable style={[styles.actionBtn, { borderColor: ui.editBorder, backgroundColor: ui.editBg }]} onPress={() => openEdit(item)}>
-                <Ionicons name="create-outline" size={12} color={ui.text} />
-                <Text style={[styles.actionText, { color: ui.text }]}>Modifier</Text>
-              </Pressable>
-              <Pressable style={[styles.actionBtn, { borderColor: ui.deleteBorder, backgroundColor: ui.deleteBg }]} onPress={() => deleteInvestment(item._id)}>
-                <Ionicons name="trash-outline" size={12} color={sem.danger} />
-                <Text style={[styles.actionText, { color: sem.danger }]}>Suppr.</Text>
-              </Pressable>
-            </View>
-          </View>
+          <InvestmentCard
+            item={item}
+            ui={ui}
+            sem={sem}
+            formatMoney={formatInvestmentMoney}
+            numberFormatter={investmentNumberFormatter}
+            isMaturityAsset={isMaturityAsset}
+            onEdit={openEdit}
+            onDelete={deleteInvestment}
+          />
         )}
       />
 
-      <Modal visible={isCreateOpen} transparent animationType="slide" onRequestClose={closeCreate}>
-        <View style={[styles.modalBackdrop, { backgroundColor: ui.modalOverlay }]}>
-          <View style={[styles.modalCard, { backgroundColor: ui.panelAlt, borderColor: ui.border }]}>
-            <Text style={[styles.modalTitle, { color: ui.text }]}>Nouvel investissement</Text>
-            <TextInput
-              placeholder="Nom de l'actif"
-              placeholderTextColor={ui.placeholder}
-              style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-              value={assetName}
-              onChangeText={setAssetName}
-            />
-            <TextInput
-              placeholder="Symbole (optionnel)"
-              autoCapitalize="characters"
-              placeholderTextColor={ui.placeholder}
-              style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-              value={symbol}
-              onChangeText={setSymbol}
-            />
-            <TextInput
-              placeholder="Quantite"
-              keyboardType="decimal-pad"
-              placeholderTextColor={ui.placeholder}
-              style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-              value={quantity}
-              onChangeText={setQuantity}
-            />
-            <TextInput
-              placeholder="Prix moyen d'achat"
-              keyboardType="decimal-pad"
-              placeholderTextColor={ui.placeholder}
-              style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-              value={averageBuyPrice}
-              onChangeText={setAverageBuyPrice}
-            />
-            <TextInput
-              placeholder="Localisation (optionnel)"
-              placeholderTextColor={ui.placeholder}
-              style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-              value={location}
-              onChangeText={setLocation}
-            />
-            {showPropertyFields ? (
-              <TextInput
-                placeholder="Superficie en m2 (optionnel)"
-                keyboardType="decimal-pad"
-                placeholderTextColor={ui.placeholder}
-                style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-                value={area}
-                onChangeText={setArea}
-              />
-            ) : null}
-            <TextInput
-              placeholder="Date d'achat YYYY-MM-DD (optionnel)"
-              placeholderTextColor={ui.placeholder}
-              style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-              value={purchaseDate}
-              onChangeText={setPurchaseDate}
-            />
-            <TextInput
-              placeholder="Valeur actuelle estimee (optionnel)"
-              keyboardType="decimal-pad"
-              placeholderTextColor={ui.placeholder}
-              style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-              value={estimatedCurrentValue}
-              onChangeText={setEstimatedCurrentValue}
-            />
-            {showYieldFields ? (
-              <TextInput
-                placeholder="Rendement annuel attendu %"
-                keyboardType="decimal-pad"
-                placeholderTextColor={ui.placeholder}
-                style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-                value={expectedAnnualReturnRate}
-                onChangeText={setExpectedAnnualReturnRate}
-              />
-            ) : null}
-            {showMaturityFields ? (
-              <TextInput
-                placeholder="Date d'echeance YYYY-MM-DD"
-                placeholderTextColor={ui.placeholder}
-                style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-                value={maturityDate}
-                onChangeText={setMaturityDate}
-              />
-            ) : null}
-            {showExitFields ? (
-              <TextInput
-                placeholder="Date de sortie YYYY-MM-DD"
-                placeholderTextColor={ui.placeholder}
-                style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-                value={exitDate}
-                onChangeText={setExitDate}
-              />
-            ) : null}
-            {showExitFields ? (
-              <TextInput
-                placeholder="Montant de sortie"
-                keyboardType="decimal-pad"
-                placeholderTextColor={ui.placeholder}
-                style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-                value={exitValue}
-                onChangeText={setExitValue}
-              />
-            ) : null}
-            <TextInput
-              placeholder="Structure / cooperative / banque (optionnel)"
-              placeholderTextColor={ui.placeholder}
-              style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-              value={institution}
-              onChangeText={setInstitution}
-            />
-            <TextInput
-              placeholder="Notes (optionnel)"
-              placeholderTextColor={ui.placeholder}
-              style={[styles.input, styles.noteInput, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-            />
-            <View style={styles.segmentWrap}>
-              {['XOF', 'USD', 'EUR'].map((option) => (
-                <Pressable
-                  key={option}
-                  style={[
-                    styles.segment,
-                    { borderColor: ui.inputBorder, backgroundColor: ui.segmentBg },
-                    currency === option && { borderColor: ui.primary, backgroundColor: ui.segmentActiveBg },
-                  ]}
-                  onPress={() => setCurrency(option)}
-                >
-                  <Text style={[styles.segmentText, { color: currency === option ? ui.text : ui.textSecondary }]}>{option}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <View style={styles.segmentWrap}>
-              {investmentTypeOptions.map((option) => (
-                <Pressable
-                  key={option.value}
-                  style={[
-                    styles.segment,
-                    { borderColor: ui.inputBorder, backgroundColor: ui.segmentBg },
-                    assetType === option.value && { borderColor: ui.primary, backgroundColor: ui.segmentActiveBg },
-                  ]}
-                  onPress={() => setAssetType(option.value)}
-                >
-                  <Text style={[styles.segmentText, { color: assetType === option.value ? ui.text : ui.textSecondary }]}>
-                    {option.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-            <View style={styles.segmentWrap}>
-              {investmentStatusOptions.map((option) => (
-                <Pressable
-                  key={option.value}
-                  style={[
-                    styles.segment,
-                    { borderColor: ui.inputBorder, backgroundColor: ui.segmentBg },
-                    status === option.value && { borderColor: ui.primary, backgroundColor: ui.segmentActiveBg },
-                  ]}
-                  onPress={() => setStatus(option.value)}
-                >
-                  <Text style={[styles.segmentText, { color: status === option.value ? ui.text : ui.textSecondary }]}>{option.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <View style={styles.modalActions}>
-              <Pressable style={[styles.modalBtn, { backgroundColor: ui.segmentBg }]} onPress={closeCreate}>
-                <Text style={[styles.modalBtnText, { color: ui.text }]}>Annuler</Text>
-              </Pressable>
-              <Pressable style={[styles.modalBtn, { backgroundColor: ui.primary }]} onPress={submitCreate} disabled={isSaving}>
-                <Text style={[styles.modalBtnText, { color: ui.onPrimary }]}>{isSaving ? 'Creation...' : 'Creer'}</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <InvestmentFormModal
+        visible={isCreateOpen}
+        title="Nouvel investissement"
+        ui={ui}
+        isSaving={isSaving}
+        onClose={closeCreate}
+        onSubmit={submitCreate}
+        submitLabel="Creer"
+        values={formValues}
+        setters={formSetters}
+        showPropertyFields={showPropertyFields}
+        showYieldFields={showYieldFields}
+        showMaturityFields={showMaturityFields}
+        showExitFields={showExitFields}
+      />
 
-      <Modal visible={isEditOpen} transparent animationType="slide" onRequestClose={closeEdit}>
-        <View style={[styles.modalBackdrop, { backgroundColor: ui.modalOverlay }]}>
-          <View style={[styles.modalCard, { backgroundColor: ui.panelAlt, borderColor: ui.border }]}>
-            <Text style={[styles.modalTitle, { color: ui.text }]}>Modifier investissement</Text>
-            <TextInput
-              placeholder="Nom de l'actif"
-              placeholderTextColor={ui.placeholder}
-              style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-              value={assetName}
-              onChangeText={setAssetName}
-            />
-            <TextInput
-              placeholder="Symbole (optionnel)"
-              autoCapitalize="characters"
-              placeholderTextColor={ui.placeholder}
-              style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-              value={symbol}
-              onChangeText={setSymbol}
-            />
-            <TextInput
-              placeholder="Quantite"
-              keyboardType="decimal-pad"
-              placeholderTextColor={ui.placeholder}
-              style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-              value={quantity}
-              onChangeText={setQuantity}
-            />
-            <TextInput
-              placeholder="Prix moyen d'achat"
-              keyboardType="decimal-pad"
-              placeholderTextColor={ui.placeholder}
-              style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-              value={averageBuyPrice}
-              onChangeText={setAverageBuyPrice}
-            />
-            <TextInput
-              placeholder="Localisation (optionnel)"
-              placeholderTextColor={ui.placeholder}
-              style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-              value={location}
-              onChangeText={setLocation}
-            />
-            {showPropertyFields ? (
-              <TextInput
-                placeholder="Superficie en m2 (optionnel)"
-                keyboardType="decimal-pad"
-                placeholderTextColor={ui.placeholder}
-                style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-                value={area}
-                onChangeText={setArea}
-              />
-            ) : null}
-            <TextInput
-              placeholder="Date d'achat YYYY-MM-DD (optionnel)"
-              placeholderTextColor={ui.placeholder}
-              style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-              value={purchaseDate}
-              onChangeText={setPurchaseDate}
-            />
-            <TextInput
-              placeholder="Valeur actuelle estimee (optionnel)"
-              keyboardType="decimal-pad"
-              placeholderTextColor={ui.placeholder}
-              style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-              value={estimatedCurrentValue}
-              onChangeText={setEstimatedCurrentValue}
-            />
-            {showYieldFields ? (
-              <TextInput
-                placeholder="Rendement annuel attendu %"
-                keyboardType="decimal-pad"
-                placeholderTextColor={ui.placeholder}
-                style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-                value={expectedAnnualReturnRate}
-                onChangeText={setExpectedAnnualReturnRate}
-              />
-            ) : null}
-            {showMaturityFields ? (
-              <TextInput
-                placeholder="Date d'echeance YYYY-MM-DD"
-                placeholderTextColor={ui.placeholder}
-                style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-                value={maturityDate}
-                onChangeText={setMaturityDate}
-              />
-            ) : null}
-            {showExitFields ? (
-              <TextInput
-                placeholder="Date de sortie YYYY-MM-DD"
-                placeholderTextColor={ui.placeholder}
-                style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-                value={exitDate}
-                onChangeText={setExitDate}
-              />
-            ) : null}
-            {showExitFields ? (
-              <TextInput
-                placeholder="Montant de sortie"
-                keyboardType="decimal-pad"
-                placeholderTextColor={ui.placeholder}
-                style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-                value={exitValue}
-                onChangeText={setExitValue}
-              />
-            ) : null}
-            <TextInput
-              placeholder="Structure / cooperative / banque (optionnel)"
-              placeholderTextColor={ui.placeholder}
-              style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-              value={institution}
-              onChangeText={setInstitution}
-            />
-            <TextInput
-              placeholder="Notes (optionnel)"
-              placeholderTextColor={ui.placeholder}
-              style={[styles.input, styles.noteInput, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-            />
-            <View style={styles.segmentWrap}>
-              {['XOF', 'USD', 'EUR'].map((option) => (
-                <Pressable
-                  key={option}
-                  style={[
-                    styles.segment,
-                    { borderColor: ui.inputBorder, backgroundColor: ui.segmentBg },
-                    currency === option && { borderColor: ui.primary, backgroundColor: ui.segmentActiveBg },
-                  ]}
-                  onPress={() => setCurrency(option)}
-                >
-                  <Text style={[styles.segmentText, { color: currency === option ? ui.text : ui.textSecondary }]}>{option}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <View style={styles.segmentWrap}>
-              {investmentTypeOptions.map((option) => (
-                <Pressable
-                  key={option.value}
-                  style={[
-                    styles.segment,
-                    { borderColor: ui.inputBorder, backgroundColor: ui.segmentBg },
-                    assetType === option.value && { borderColor: ui.primary, backgroundColor: ui.segmentActiveBg },
-                  ]}
-                  onPress={() => setAssetType(option.value)}
-                >
-                  <Text style={[styles.segmentText, { color: assetType === option.value ? ui.text : ui.textSecondary }]}>
-                    {option.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-            <View style={styles.segmentWrap}>
-              {investmentStatusOptions.map((option) => (
-                <Pressable
-                  key={option.value}
-                  style={[
-                    styles.segment,
-                    { borderColor: ui.inputBorder, backgroundColor: ui.segmentBg },
-                    status === option.value && { borderColor: ui.primary, backgroundColor: ui.segmentActiveBg },
-                  ]}
-                  onPress={() => setStatus(option.value)}
-                >
-                  <Text style={[styles.segmentText, { color: status === option.value ? ui.text : ui.textSecondary }]}>{option.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <View style={styles.modalActions}>
-              <Pressable style={[styles.modalBtn, { backgroundColor: ui.segmentBg }]} onPress={closeEdit}>
-                <Text style={[styles.modalBtnText, { color: ui.text }]}>Annuler</Text>
-              </Pressable>
-              <Pressable style={[styles.modalBtn, { backgroundColor: ui.primary }]} onPress={submitEdit} disabled={isSaving}>
-                <Text style={[styles.modalBtnText, { color: ui.onPrimary }]}>{isSaving ? 'Sauvegarde...' : 'Sauvegarder'}</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <InvestmentFormModal
+        visible={isEditOpen}
+        title="Modifier investissement"
+        ui={ui}
+        isSaving={isSaving}
+        onClose={closeEdit}
+        onSubmit={submitEdit}
+        submitLabel="Sauvegarder"
+        values={formValues}
+        setters={formSetters}
+        showPropertyFields={showPropertyFields}
+        showYieldFields={showYieldFields}
+        showMaturityFields={showMaturityFields}
+        showExitFields={showExitFields}
+      />
     </>
   );
 };
@@ -1335,64 +689,6 @@ const styles = StyleSheet.create({
   page: { flex: 1 },
   content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24, gap: 10 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  hero: { borderRadius: 22, borderWidth: 1, padding: 16, gap: 10, overflow: 'hidden' },
-  heroGlow: {
-    position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    opacity: 0.28,
-  },
-  heroGlowLeft: {
-    top: -35,
-    left: -25,
-  },
-  heroGlowRight: {
-    bottom: -45,
-    right: -20,
-  },
-  heroRibbon: {
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-  },
-  heroRibbonText: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-  },
-  title: { fontSize: 22, fontFamily: 'Georgia', fontWeight: '700' },
-  subtitle: { fontSize: 12, lineHeight: 18 },
-  kpiRow: { flexDirection: 'row', gap: 10 },
-  kpiCard: { flex: 1, borderRadius: 16, borderWidth: 1, paddingVertical: 11, paddingHorizontal: 11 },
-  kpiCardWide: { flex: 1.4 },
-  kpiLabel: { fontSize: 11 },
-  kpiValue: { marginTop: 4, fontWeight: '800', fontSize: 15 },
-  kpiHint: { marginTop: 3, fontSize: 10, lineHeight: 14 },
-  featuredRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  filterBlock: { gap: 7 },
-  filterTitle: { fontSize: 11, fontWeight: '700' },
-  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  filterChip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-  },
-  filterChipText: { fontSize: 10, fontWeight: '700' },
-  filteredSummary: {
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  filteredSummaryText: { fontSize: 12, fontWeight: '700', flex: 1 },
-  filteredResetText: { fontSize: 12, fontWeight: '800' },
   analyticsRow: { flexDirection: 'row', gap: 10, marginTop: 2 },
   analyticsCard: {
     flex: 1,
@@ -1413,39 +709,6 @@ const styles = StyleSheet.create({
   analyticsValue: { fontSize: 14, fontWeight: '800' },
   analyticsWideValue: { fontSize: 16, fontWeight: '800' },
   analyticsHint: { fontSize: 11, lineHeight: 16 },
-  featureChip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  featureChipText: { fontSize: 10, fontWeight: '700' },
-  performanceHero: {
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  performanceHeroBody: { flex: 1 },
-  performanceHeroLabel: { fontSize: 11, fontWeight: '700' },
-  performanceHeroValue: { marginTop: 2, fontSize: 15, fontWeight: '800' },
-  performanceHeroRate: { fontSize: 13, fontWeight: '800' },
-  addBtn: {
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  addBtnText: { fontWeight: '700', fontSize: 12 },
   insightCard: {
     borderRadius: 16,
     borderWidth: 1,
@@ -1456,75 +719,8 @@ const styles = StyleSheet.create({
   insightTitle: { fontSize: 13, fontWeight: '800' },
   insightText: { fontSize: 13, lineHeight: 19 },
   empty: { textAlign: 'center', marginTop: 18 },
-  card: { borderRadius: 18, borderWidth: 1, padding: 14, gap: 8 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
-  identity: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  iconWrap: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  body: { flex: 1 },
-  cardTitle: { fontWeight: '700', fontSize: 14 },
-  cardMeta: { marginTop: 2, fontSize: 12 },
-  symbolBadge: { borderRadius: 999, borderWidth: 1, paddingVertical: 4, paddingHorizontal: 8 },
-  symbolBadgeText: { fontWeight: '700' },
-  statusBadge: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    fontSize: 11,
-    fontWeight: '700',
-    overflow: 'hidden',
-  },
-  metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  metricTile: {
-    width: '48%',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    gap: 4,
-  },
-  metricTileWide: {
-    width: '100%',
-  },
   metricRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   metricLabel: { fontSize: 11 },
-  metricValue: { fontSize: 12, fontWeight: '700' },
-  metricStrong: { fontSize: 13, fontWeight: '800' },
-  estimateBanner: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  estimateText: { fontSize: 12, fontWeight: '700', flex: 1 },
-  estimateDelta: { fontSize: 11, fontWeight: '800' },
-  actionRow: { flexDirection: 'row', gap: 8, marginTop: 2 },
-  actionBtn: {
-    flex: 1,
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  actionText: { fontSize: 11, fontWeight: '700' },
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
-  modalCard: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, borderTopWidth: 1, gap: 10 },
-  modalTitle: { fontSize: 18, fontWeight: '700' },
-  input: { borderWidth: 1, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14 },
-  noteInput: { minHeight: 72, textAlignVertical: 'top' },
-  segmentWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 2 },
-  segment: { borderWidth: 1, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12 },
-  segmentText: { fontWeight: '700', fontSize: 12 },
-  modalActions: { marginTop: 4, flexDirection: 'row', gap: 10 },
-  modalBtn: { flex: 1, borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
-  modalBtnText: { fontWeight: '700' },
   noteText: { fontSize: 12, lineHeight: 18, marginTop: 2 },
 });
 

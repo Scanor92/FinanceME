@@ -31,8 +31,13 @@ const DebtDetailScreen = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [isPayOpen, setIsPayOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [personName, setPersonName] = useState('');
+  const [type, setType] = useState('payable');
+  const [principalAmount, setPrincipalAmount] = useState('');
+  const [note, setNote] = useState('');
 
   const fetchData = useCallback(async () => {
     if (!debtId) return;
@@ -101,6 +106,71 @@ const DebtDetailScreen = () => {
     }
   };
 
+  const openEdit = () => {
+    if (!debt) return;
+    setPersonName(debt.personName || '');
+    setType(debt.type || 'payable');
+    setPrincipalAmount(String(debt.principalAmount ?? ''));
+    setNote(debt.note || '');
+    setIsEditOpen(true);
+  };
+
+  const submitEdit = async () => {
+    if (!debt) return;
+    if (!personName.trim() || !principalAmount.trim()) {
+      Alert.alert('Validation', 'personne et montant sont requis');
+      return;
+    }
+
+    const amount = Number(principalAmount);
+    if (Number.isNaN(amount) || amount < 0) {
+      Alert.alert('Validation', 'montant invalide');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      await debtApi.update(debt._id, {
+        personName: personName.trim(),
+        type,
+        principalAmount: amount,
+        note: note.trim() || undefined,
+      });
+      await fetchData();
+      setIsEditOpen(false);
+      Alert.alert('Succes', 'Dette modifiee');
+    } catch (error) {
+      Alert.alert('Erreur', error?.response?.data?.message || 'Modification impossible');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const deleteDebt = () => {
+    if (!debt) return;
+
+    Alert.alert('Confirmation', 'Supprimer cette dette ?', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await debtApi.remove(debt._id);
+            Alert.alert('Succes', 'Dette supprimee');
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              navigation.navigate('Debts');
+            }
+          } catch (error) {
+            Alert.alert('Erreur', error?.response?.data?.message || 'Suppression impossible');
+          }
+        },
+      },
+    ]);
+  };
+
   const ui = useMemo(
     () => ({
       page: palette.background,
@@ -154,7 +224,7 @@ const DebtDetailScreen = () => {
         ListHeaderComponent={
           <View style={[styles.hero, { borderColor: ui.border, backgroundColor: ui.panel }]}> 
             <View style={styles.topRow}>
-              <Pressable style={[styles.backBtn, { borderColor: ui.backBtnBorder, backgroundColor: ui.backBtnBg }]} onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Debts'))}>
+              <Pressable style={[styles.backBtn, { borderColor: ui.backBtnBorder, backgroundColor: ui.backBtnBg }]} onPress={() => navigation.navigate('Debts')}>
                 <Ionicons name="chevron-back" size={16} color={ui.text} />
                 <Text style={[styles.backBtnText, { color: ui.text }]}>Retour</Text>
               </Pressable>
@@ -167,6 +237,9 @@ const DebtDetailScreen = () => {
 
             {debt.status === 'open' ? (
               <View style={styles.actionsRow}>
+                <Pressable style={[styles.editBtn, { borderColor: ui.backBtnBorder, backgroundColor: ui.backBtnBg }]} onPress={openEdit}>
+                  <Text style={[styles.editBtnText, { color: ui.text }]}>Modifier</Text>
+                </Pressable>
                 <Pressable style={[styles.payBtn, { backgroundColor: ui.primary }]} onPress={() => setIsPayOpen(true)}>
                   <Text style={[styles.payBtnText, { color: ui.onPrimary }]}>{debt.type === 'payable' ? 'Payer' : 'Encaisser'}</Text>
                 </Pressable>
@@ -175,6 +248,11 @@ const DebtDetailScreen = () => {
                 </Pressable>
               </View>
             ) : null}
+
+            <Pressable style={[styles.deleteBtn, { borderColor: `${sem.danger}55`, backgroundColor: `${sem.danger}14` }]} onPress={deleteDebt}>
+              <Ionicons name="trash-outline" size={14} color={sem.danger} />
+              <Text style={[styles.deleteBtnText, { color: sem.danger }]}>Supprimer la dette</Text>
+            </Pressable>
           </View>
         }
         ListEmptyComponent={<Text style={[styles.empty, { color: ui.muted }]}>Aucun paiement enregistre.</Text>}
@@ -210,6 +288,59 @@ const DebtDetailScreen = () => {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={isEditOpen} transparent animationType="slide" onRequestClose={() => setIsEditOpen(false)}>
+        <View style={[styles.modalBackdrop, { backgroundColor: ui.modalOverlay }]}>
+          <View style={[styles.modalCard, { backgroundColor: ui.panelAlt, borderColor: ui.border }]}>
+            <Text style={[styles.modalTitle, { color: ui.text }]}>Modifier dette</Text>
+            <TextInput
+              placeholder="Personne"
+              placeholderTextColor={ui.placeholder}
+              style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
+              value={personName}
+              onChangeText={setPersonName}
+            />
+            <TextInput
+              placeholder="Montant"
+              placeholderTextColor={ui.placeholder}
+              keyboardType="decimal-pad"
+              style={[styles.input, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
+              value={principalAmount}
+              onChangeText={setPrincipalAmount}
+            />
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.segment, { borderColor: ui.inputBorder, backgroundColor: ui.segmentBg }]}
+                onPress={() => setType('payable')}
+              >
+                <Text style={[styles.segmentText, { color: type === 'payable' ? ui.text : ui.textSecondary }]}>Je dois</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.segment, { borderColor: ui.inputBorder, backgroundColor: ui.segmentBg }]}
+                onPress={() => setType('receivable')}
+              >
+                <Text style={[styles.segmentText, { color: type === 'receivable' ? ui.text : ui.textSecondary }]}>On me doit</Text>
+              </Pressable>
+            </View>
+            <TextInput
+              placeholder="Note (optionnel)"
+              placeholderTextColor={ui.placeholder}
+              style={[styles.input, styles.noteInput, { borderColor: ui.inputBorder, backgroundColor: ui.inputBg, color: ui.inputText }]}
+              value={note}
+              onChangeText={setNote}
+              multiline
+            />
+            <View style={styles.modalActions}>
+              <Pressable style={[styles.modalBtn, { backgroundColor: ui.backBtnBg }]} onPress={() => setIsEditOpen(false)}>
+                <Text style={[styles.modalBtnText, { color: ui.text }]}>Annuler</Text>
+              </Pressable>
+              <Pressable style={[styles.modalBtn, { backgroundColor: ui.primary }]} onPress={submitEdit} disabled={isSaving}>
+                <Text style={[styles.modalBtnText, { color: ui.onPrimary }]}>{isSaving ? 'Sauvegarde...' : 'Sauvegarder'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 };
@@ -226,10 +357,14 @@ const styles = StyleSheet.create({
   meta: { fontSize: 12 },
   amount: { fontSize: 13, fontWeight: '700', marginTop: 2 },
   actionsRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  editBtn: { borderRadius: 8, borderWidth: 1, paddingVertical: 7, paddingHorizontal: 10 },
+  editBtnText: { fontWeight: '700', fontSize: 11 },
   payBtn: { borderRadius: 8, paddingVertical: 7, paddingHorizontal: 10 },
   payBtnText: { fontWeight: '700', fontSize: 11 },
   payAllBtn: { borderRadius: 8, borderWidth: 1, paddingVertical: 7, paddingHorizontal: 10 },
   payAllBtnText: { fontWeight: '700', fontSize: 11 },
+  deleteBtn: { marginTop: 8, alignSelf: 'flex-start', borderRadius: 8, borderWidth: 1, paddingVertical: 7, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  deleteBtnText: { fontWeight: '700', fontSize: 11 },
   empty: { textAlign: 'center', marginTop: 20 },
   row: { borderRadius: 12, borderWidth: 1, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
   dot: { width: 7, height: 7, borderRadius: 3.5 },

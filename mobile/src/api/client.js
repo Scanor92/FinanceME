@@ -62,7 +62,9 @@ export const debtApi = {
   getById: (id) => api.get(`/debts/${id}`),
   summary: () => api.get('/debts/summary/totals'),
   create: (payload) => api.post('/debts', payload),
+  update: (id, payload) => api.patch(`/debts/${id}`, payload),
   pay: (id, payload) => api.post(`/debts/${id}/payments`, payload),
+  remove: (id) => api.delete(`/debts/${id}`),
 };
 
 export const accountApi = {
